@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bitcoin Prediction Game</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            background-color: #121212;
+            color: #fff;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            flex-direction: column;
+        }
+
+        h2 {
+            font-size: 28px;
+            margin-bottom: 20px;
+            color: #ffbf00;
+        }
+
+        p {
+            font-size: 18px;
+            color: #b3b3b3;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+
+        .button {
+            margin: 10px;
+            padding: 15px 30px;
+            background-color: #ffbf00;
+            border: none;
+            border-radius: 5px;
+            font-size: 20px;
+            color: #121212;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+
+        .button:hover {
+            background-color: #ffaa00;
+        }
+
+        .input {
+            margin: 10px;
+            padding: 10px;
+            font-size: 18px;
+            border-radius: 5px;
+            border: 1px solid #ccc;
+        }
+
+        .result {
+            margin-top: 30px;
+            font-size: 22px;
+            color: #ff5733;
+            text-align: center;
+        }
+
+        .result.correct {
+            color: #28a745;
+        }
+
+        .result.wrong {
+            color: #dc3545;
+        }
+    </style>
+</head>
+<body>
+
+    <h2>Bitcoin Prediction Game</h2>
+    <p>Choose your bet amount and leverage to predict Bitcoin's price movement in the next minute!</p>
+
+    <!-- Ставка и кредитное плечо -->
+    <label for="betAmount">Amount to Bet (USD):</label>
+    <input id="betAmount" class="input" type="number" min="1" value="10">
+
+    <label for="leverage">Choose Leverage:</label>
+    <select id="leverage" class="input">
+        <option value="2">x2</option>
+        <option value="5">x5</option>
+        <option value="10">x10</option>
+    </select>
+
+    <button class="button" id="upBtn">Bitcoin Up</button>
+    <button class="button" id="downBtn">Bitcoin Down</button>
+
+    <div id="result" class="result"></div>
+
+    <script>
+        Telegram.WebApp.init();
+
+        // Получаем цену Bitcoin через API
+        async function getBitcoinPrice() {
+            const response = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd');
+            const data = await response.json();
+            return data.bitcoin.usd;
+        }
+
+        // Обработка предсказания
+        async function makePrediction(prediction) {
+            const betAmount = parseFloat(document.getElementById("betAmount").value);
+            const leverage = parseFloat(document.getElementById("leverage").value);
+            const currentPrice = await getBitcoinPrice();
+            
+            setTimeout(async () => {
+                const futurePrice = await getBitcoinPrice();
+                let resultText = "";
+                let resultClass = "";
+                let fomPoints = 0;
+
+                // Логика выигрыша и проигрыша с учетом кредитного плеча
+                if ((prediction === "up" && futurePrice > currentPrice) || (prediction === "down" && futurePrice < currentPrice)) {
+                    resultText = `Correct! Bitcoin went ${prediction}. Current price: $${currentPrice}. Future price: $${futurePrice}.`;
+                    resultClass = "correct";
+                    fomPoints = betAmount * leverage;  // Выигрыш с учетом плеча
+                } else {
+                    resultText = `Wrong! Bitcoin didn't go ${prediction}. Current price: $${currentPrice}. Future price: $${futurePrice}.`;
+                    resultClass = "wrong";
+                    fomPoints = -betAmount * leverage;  // Проигрыш с учетом плеча
+                }
+
+                document.getElementById("result").innerText = `${resultText}\nYour FOM balance change: ${fomPoints} FOM`;
+
+                // Проверка, если проиграно все — предложить докупить токены
+                if (fomPoints < 0) {
+                    document.getElementById("result").innerText += "\nYou have lost all your FOM! Consider buying more tokens.";
+                }
+
+                document.getElementById("result").className = `result ${resultClass}`;
+            }, 60000); // Ждем 1 минуту
+        }
+
+        // Обработчики кнопок
+        document.getElementById("upBtn").addEventListener("click", () => makePrediction("up"));
+        document.getElementById("downBtn").addEventListener("click", () => makePrediction("down"));
+    </script>
+
+</body>
+</html>
